@@ -1,0 +1,20 @@
+# Terraform State Files
+*.tfstate
+*.tfstate.*backup
+
+# Terraform Cache and Plugin Directory
+.terraform/
+
+# Terraform Variable Files (potentially containing sensitive data)
+*.tfvars
+*.tfvars.json
+
+# Terraform CLI Configuration Files
+.terraformrc
+terraform.rc
+
+# Crash Logs from Terraform CLI
+crash.log
+
+# Plan files
+*.bin
