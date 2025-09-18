@@ -9,3 +9,4 @@ module "ansible_playbook_bucket" {
     aws.replica = aws.usw1
   }
 }
+
