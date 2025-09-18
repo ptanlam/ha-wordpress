@@ -1,0 +1,13 @@
+<VirtualHost *:80>
+    ServerName {{ ansible_default_ipv4.address }}
+    DocumentRoot /var/www/html
+    DirectoryIndex index.php index.html
+
+    <Directory /var/www/html>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog /var/log/httpd/wordpress_error.log
+    CustomLog /var/log/httpd/wordpress_access.log combined
+</VirtualHost>

@@ -3,8 +3,7 @@ locals {
   replica_bucket_name = "${var.name}-replica"
 
   tags = {
-    Department = "Technology"
-    Purpose    = "Ansible Playbook"
+    Purpose = "Ansible Playbook"
   }
 }
 

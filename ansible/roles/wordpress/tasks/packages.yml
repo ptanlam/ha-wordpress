@@ -1,0 +1,30 @@
+---
+- name: Update all packages
+  dnf:
+    name: '*'
+    state: latest
+
+- name: Install required packages
+  dnf:
+    name:
+      - httpd
+      - php
+      - php-mysqlnd
+      - php-fpm
+      - php-json
+      - php-gd
+      - php-xml
+      - php-mbstring
+      - php-zip
+      - wget
+      - unzip
+    state: present
+
+- name: Start and enable services
+  systemd:
+    name: '{{ item }}'
+    state: started
+    enabled: yes
+  loop:
+    - httpd
+    - php-fpm

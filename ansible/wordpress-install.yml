@@ -1,0 +1,6 @@
+---
+- name: Install WordPress on Amazon Linux 2023
+  hosts: webservers
+  become: yes
+  roles:
+    - wordpress
