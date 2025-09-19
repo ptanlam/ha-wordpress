@@ -1,11 +1,11 @@
 ---
-- name: Update all packages
-  dnf:
+- name: Ensure all packages are installed (no upgrade)
+  ansible.builtin.dnf:
     name: '*'
     state: latest
 
 - name: Install required packages
-  dnf:
+  ansible.builtin.dnf:
     name:
       - httpd
       - php
@@ -21,10 +21,10 @@
     state: present
 
 - name: Start and enable services
-  systemd:
+  ansible.builtin.systemd:
     name: '{{ item }}'
     state: started
-    enabled: yes
+    enabled: true
   loop:
     - httpd
     - php-fpm

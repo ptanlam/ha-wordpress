@@ -18,3 +18,7 @@ crash.log
 
 # Plan files
 *.bin
+
+.ansible
+.venv
+.vscode

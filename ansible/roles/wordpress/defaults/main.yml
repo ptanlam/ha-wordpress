@@ -1,10 +1,4 @@
----
-# WordPress installation defaults
-# RDS MySQL connection details
-wordpress_db_host: "{{ rds_endpoint }}"
-wordpress_db_name: wordpress
-wordpress_db_user: wpuser
-wordpress_db_password: "{{ vault_wordpress_db_password | default('wppassword123!') }}"
-wordpress_admin_user: admin
-wordpress_admin_password: "{{ vault_wordpress_admin_password | default('admin123!') }}"
-wordpress_admin_email: admin@example.com
+wordpress_db_host: '{{ rds_endpoint }}'
+wordpress_db_name: '{{ rds_db_name }}'
+wordpress_db_user: '{{ rds_db_user }}'
+wordpress_db_password: '{{ rds_db_password }}'

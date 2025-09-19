@@ -1,9 +1,9 @@
 ---
 - name: Include package installation tasks
-  include_tasks: packages.yml
+  ansible.builtin.include_tasks: packages.yml
 
 - name: Include WordPress installation tasks
-  include_tasks: wordpress.yml
+  ansible.builtin.include_tasks: wordpress.yml
 
 - name: Include Apache configuration tasks
-  include_tasks: apache.yml
+  ansible.builtin.include_tasks: apache.yml

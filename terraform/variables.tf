@@ -31,8 +31,9 @@ variable "playbook_bucket" {
 
 variable "vpc" {
   type = object({
-    cidr = string
-    azs  = list(string)
+    cidr         = string
+    azs          = list(string)
+    failover_azs = list(string)
 
     private_subnets  = list(string)
     public_subnets   = list(string)
@@ -41,4 +42,30 @@ variable "vpc" {
     enable_nat_gateway     = bool
     one_nat_gateway_per_az = bool
   })
+}
+
+variable "database" {
+  type = object({
+    instance_class    = string
+    allocated_storage = number
+    db_name           = string
+    username          = string
+    password          = string
+  })
+  description = "Database configuration"
+}
+
+variable "webserver" {
+  type = object({
+    instance_type    = string
+    desired_capacity = number
+    max_size         = number
+    min_size         = number
+  })
+  description = "Web server configuration"
+}
+
+variable "dns_name" {
+  type        = string
+  description = "The DNS name for the application (e.g., example.com)"
 }

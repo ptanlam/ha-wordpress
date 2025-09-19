@@ -1,23 +1,3 @@
-data "aws_ami" "amazon_linux_2023" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-x86_64"]
-  }
-
-  filter {
-    name   = "root-device-type"
-    values = ["ebs"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
 resource "aws_imagebuilder_component" "this" {
   data = yamlencode({
     phases = [{
@@ -27,7 +7,10 @@ resource "aws_imagebuilder_component" "this" {
           name   = "InstallAnsible"
           action = "ExecuteBash"
           inputs = {
-            commands = ["sudo amazon-linux-extras install -y ansible2"]
+            commands = [
+              "sudo dnf update -y",
+              "sudo dnf install -y python3 python3-pip ansible"
+            ]
           }
         },
         {
@@ -35,18 +18,17 @@ resource "aws_imagebuilder_component" "this" {
           action = "S3Download"
           inputs = [
             {
-              source      = "s3://${var.playbook_bucket}",
+              source      = "s3://${var.playbook_bucket}/*",
               destination = "/tmp/playbook"
             }
           ]
         },
         {
           name   = "InvokeAnsible"
-          action = "ExecuteBinary"
+          action = "ExecuteBash"
           inputs = {
-            path = "ansible-playbook",
-            arguments = [
-              "'{{build.DownloadPlaybook.inputs[0].destination}}'/wordpress-install.yml"
+            commands = [
+              "ansible-playbook -i {{build.DownloadPlaybook.inputs[0].destination}}/inventory -e 'rds_endpoint=${var.db_host} rds_db_name=${var.db_name} rds_db_user=${var.db_user} rds_db_password=${var.db_password}' {{build.DownloadPlaybook.inputs[0].destination}}/wordpress-install.yml"
             ]
           }
         },
@@ -82,28 +64,35 @@ resource "aws_imagebuilder_image_recipe" "this" {
   }
 
   name         = var.name
-  parent_image = data.aws_ami.amazon_linux_2023.arn
+  parent_image = "arn:${data.aws_partition.current.partition}:imagebuilder:${data.aws_region.current.region}:aws:image/amazon-linux-2023-x86/x.x.x"
   version      = "1.0.0"
 }
 
-# resource "aws_imagebuilder_infrastructure_configuration" "example" {
-#   description                   = "example description"
-#   instance_profile_name         = aws_iam_instance_profile.example.name
-#   instance_types                = ["t2.nano", "t3.micro"]
-#   key_pair                      = aws_key_pair.example.key_name
-#   name                          = "example"
-#   security_group_ids            = [aws_security_group.example.id]
-#   subnet_id                     = aws_subnet.main.id
-#   terminate_instance_on_failure = true
+resource "aws_imagebuilder_infrastructure_configuration" "this" {
+  instance_profile_name         = var.instance_profile_name
+  instance_types                = ["t2.nano", "t3.micro"]
+  name                          = var.name
+  security_group_ids            = [aws_security_group.this.id]
+  subnet_id                     = element(var.private_subnets, 0)
+  terminate_instance_on_failure = true
 
-#   logging {
-#     s3_logs {
-#       s3_bucket_name = aws_s3_bucket.example.bucket
-#       s3_key_prefix  = "logs"
-#     }
-#   }
+  logging {
+    s3_logs {
+      s3_bucket_name = var.logging_bucket_name
+      s3_key_prefix  = "${data.aws_region.current.region}/logs"
+    }
+  }
+}
 
-#   tags = {
-#     foo = "bar"
-#   }
-# }
+resource "aws_imagebuilder_image_pipeline" "this" {
+  name = var.name
+
+  image_recipe_arn                 = aws_imagebuilder_image_recipe.this.arn
+  infrastructure_configuration_arn = aws_imagebuilder_infrastructure_configuration.this.arn
+
+  lifecycle {
+    replace_triggered_by = [
+      aws_imagebuilder_image_recipe.this
+    ]
+  }
+}

@@ -30,3 +30,5 @@ module "vpc_endpoints" {
     }
   }
 }
+
+// TODO: add replica
