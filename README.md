@@ -44,25 +44,44 @@ This project provisions a highly available (HA) WordPress deployment using Terra
 
 ## Deployment Steps
 
+### Prerequisites
+
+Before you begin, ensure you have:
+
+- An AWS account with appropriate permissions to create and manage VPCs, EC2, RDS, S3, IAM, Route53, and Image Builder resources.
+- An S3 bucket already created to store the Terraform remote state (see backend configuration step below).
+- AWS CLI and Terraform installed locally.
+
 ### 1. Infrastructure Provisioning (Terraform)
 
-1. **Initialize Terraform**
+1. **Create the Backend Configuration File**
 
-```sh
-cd terraform
-terraform init
-```
+- Before initializing Terraform, create the backend config file (e.g., `_backend/prod.config`) with the following content:
 
-2. **Select Environment Variables**
+  ```hcl
+  bucket       = "REPLACE_ME"
+  use_lockfile = true
+  key          = "terraform.state"
+  region       = "us-east-1"
+  ```
+
+2. **Initialize Terraform**
+
+   ```sh
+   cd terraform
+   terraform init -backend-config="_backend/prod.config"
+   ```
+
+3. **Select Environment Variables**
 
    - Edit or use the appropriate tfvars file in `_tfvars/` (e.g., `prod.tfvars`)
 
-3. **Plan and Apply**
+4. **Plan and Apply**
 
-```sh
-terraform plan -var-file="_tfvars/prod.tfvars"
-terraform apply -var-file="_tfvars/prod.tfvars"
-```
+   ```sh
+   terraform plan -var-file="_tfvars/prod.tfvars"
+   terraform apply -var-file="_tfvars/prod.tfvars"
+   ```
 
 ### 2. Create the AMI (Image Builder)
 
