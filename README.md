@@ -6,18 +6,31 @@ This project provisions a highly available (HA) WordPress deployment using Terra
 
 ![HA WordPress Architecture Diagram](assets/high-level-architecture.png)
 
+**Architecture Overview:**
+
+- **VPC (Multi-AZ):** Main and failover subnets for high availability.
+- **Route53 DNS:** Health checks and failover routing between main and failover ALBs.
+- **ALB (Application Load Balancer):** In public subnets, routes HTTP/HTTPS traffic to web servers.
+- **Auto Scaling Group (ASG):** EC2 web servers in private subnets, managed by a launch template.
+- **RDS MySQL (Multi-AZ):** Managed database with automatic failover.
+- **S3 Buckets:** For playbooks, logs, and static assets, with cross-region replication for DR.
+- **IAM:** Roles for S3 replication, EC2, and least-privilege access.
+- **Ansible:** Installs and configures Apache, PHP, and WordPress on EC2 instances.
+
 ## Design Overview
 
-- **Terraform** is used for infrastructure provisioning:
-  - **Networking**: VPC, subnets, security groups
-  - **Compute**: Auto Scaling Group (ASG) for web servers, ALB for load balancing
-  - **Database**: RDS (or similar) for managed MySQL
-  - **IAM**: Roles and policies for least-privilege access
-  - **S3 Buckets**: For static assets, logs, and backups
-- **Ansible** is used for configuration management:
-  - Installs Apache, PHP, and WordPress on EC2 instances
-  - Configures WordPress with environment-specific settings
-  - Handles service restarts and package management
+- **Terraform** provisions all AWS infrastructure:
+  - **Networking:** VPC, public/private/database subnets, NAT gateways
+  - **Compute:** Auto Scaling Group (ASG) for EC2 web servers (Amazon Linux 2023)
+  - **Load Balancing:** ALB in each region/subnet for web traffic
+  - **Database:** RDS MySQL (multi-AZ, managed, with failover)
+  - **S3 Buckets:** For Ansible playbooks, logs, and static assets, with cross-region replication
+  - **IAM:** Roles for S3 replication, EC2, and least-privilege access
+  - **Route53:** DNS zone, health checks, and failover routing between main and failover ALBs
+- **Ansible** configures EC2 web servers:
+  - Installs Apache, PHP, and WordPress
+  - Configures WordPress with environment-specific settings (from variables)
+  - Handles service restarts, permissions, and Apache configuration
 
 ## Directory Structure
 
@@ -51,36 +64,77 @@ terraform plan -var-file="_tfvars/prod.tfvars"
 terraform apply -var-file="_tfvars/prod.tfvars"
 ```
 
-4. **Output**
-   - Note the outputs (e.g., public IPs, ALB DNS, RDS endpoint)
+### 2. Create the AMI (Image Builder)
+
+1. **Trigger the Image Builder Pipeline**
+
+   - Use the AWS Console or CLI to start the EC2 Image Builder pipeline that creates the custom AMI for your web servers.
+   - Example CLI command:
+
+     ```sh
+     aws imagebuilder start-image-pipeline-execution --image-pipeline-arn <your-pipeline-arn>
+     ```
+
+   - Wait for the pipeline to complete and note the resulting AMI ID.
+   - Update your Terraform variables or environment to use the new AMI ID for the webserver launch template.
+
+## Example tfvars Configuration
+
+Below is an example of a `tfvars` file for production, combining values from `common.tfvars` and `prod.tfvars`:
+
+```hcl
+app_name = "ha-wordpress"
+
+environment = "prod"
+
+region = {
+  main     = "us-east-1"
+  failover = "us-west-1"
+}
+
+playbook_bucket = {
+  replica_enabled = true
+}
+
+vpc = {
+  cidr = "10.0.0.0/16"
+
+  azs          = ["us-east-1a", "us-east-1b"]
+  failover_azs = ["us-west-1a", "us-west-1c"]
+
+  private_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
+  public_subnets   = ["10.0.101.0/24", "10.0.102.0/24"]
+  database_subnets = ["10.0.11.0/24", "10.0.12.0/24"]
+
+  enable_nat_gateway     = true
+  one_nat_gateway_per_az = true
+}
+
+database = {
+  instance_class    = "db.t3.micro"
+  allocated_storage = 5
+  db_name           = "app"
+  username          = "app_admin"
+  password          = "REPLACE_ME_WITH_A_SECURE_PASSWORD"
+}
+
+webserver = {
+  instance_type    = "t3.micro"
+  desired_capacity = 2
+  max_size         = 2
+  min_size         = 2
+}
+
+dns_name = "ha.wordpress"
+```
 
 ### 2. Configuration Management (Ansible)
 
-1. **Update Inventory**
-   - Edit `ansible/inventory` with the public/private IPs of the provisioned EC2 instances
-2. **Configure Ansible Variables**
-   - Edit `roles/wordpress/vars/main.yml` and `defaults/main.yml` as needed
-3. **Run Playbook**
+After modifying the Ansible configuration (playbooks, roles, or templates), you only need to re-apply Terraform. The latest Ansible content will be uploaded to the S3 bucket and used by the EC2 instances at launch or during configuration runs. There is no need to rebuild the AMI unless you change the base OS or system-level packages.
+
+**To re-apply:**
 
 ```sh
-cd ansible
-ansible-playbook -i inventory wordpress-install.yml
+cd terraform
+terraform apply -var-file="_tfvars/prod.tfvars"
 ```
-
-## Assumptions
-
-- AWS credentials are configured and have sufficient permissions
-- SSH access to EC2 instances is available (key pair configured)
-- RDS or database endpoint is accessible from web servers
-- DNS and SSL are managed outside this repo (can be added as needed)
-- The project is modular and can be extended for staging/production via tfvars
-
-## Notes
-
-- For production, ensure secrets (DB password, etc.) are managed securely (e.g., AWS Secrets Manager)
-- Backups and monitoring are recommended for RDS and EC2
-- The Ansible playbook is idempotent and can be re-run safely
-
----
-
-For questions or improvements, please open an issue or PR.

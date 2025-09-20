@@ -6,6 +6,7 @@ locals {
     Purpose = "Ansible Playbook"
   }
 }
+
 module "ansible_playbook_bucket_replica" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "5.7.0"
@@ -61,4 +62,15 @@ module "ansible_playbook_bucket" {
   providers = {
     aws = aws.main
   }
+}
+
+resource "aws_s3_object" "ansible" {
+  depends_on = [module.ansible_playbook_bucket]
+
+  for_each = fileset("../ansible/", "**")
+
+  bucket = module.ansible_playbook_bucket.s3_bucket_id
+  key    = each.value
+  source = "../ansible/${each.value}"
+  etag   = filemd5("../ansible/${each.value}")
 }
